@@ -1,0 +1,30 @@
+---
+
+- name: Create directory for PID-files
+  file:
+    path: /run/slurm
+    owner: "{{ (slurm_user | default({})).name | default('slurm') }}"
+    group: "{{ (slurm_user | default({})).group | default(omit) }}"
+    mode: 0700
+    state: directory
+
+- name: Configure PID-folders to be created at every boot
+  ansible.builtin.copy:
+    src: etc_tmpfiles.d_slurm.conf
+    dest: /etc/tmpfiles.d/slurm.conf
+    owner: "{{ (slurm_user | default({})).name | default('slurm') }}"
+    group: "{{ (slurm_user | default({})).group | default(omit) }}"
+    mode: '0644'
+
+- name: Create service configuration files
+  ansible.builtin.blockinfile:
+    create: true
+    path: "/etc/systemd/system/{{ item }}.d/pid_location.conf"
+    block: |
+      [Service]
+      PIDFile=/run/slurm/{{ item }}.pid
+  loop:
+    - "{{ slurmd_service_name }}"
+    - "{{ slurmctld_service_name }}"
+    - "{{ slurmdbd_service_name }}"
+
